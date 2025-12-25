@@ -7,13 +7,37 @@
   const ctx = canvas.getContext("2d", { alpha: false });
 
   let W = 0, H = 0;
+  
+  const WORLD_W = 830;
+  const WORLD_H = 820;   // pick the ratio you want; can tweak
+
+  let view = { scale: 1, ox: 0, oy: 0 };
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
   function absdist(a, b) { return Math.abs(a - b); }
+  
+  function updateView() {
+    // Fit by HEIGHT first (so the battle fills vertically like you want)
+    const sH = (H / WORLD_H);
+
+    // Then if screen is too narrow, shrink to also fit width.
+    const sW = (W / WORLD_W);
+
+    const s = Math.min(sH, sW);   // never exceed what fits
+
+    view.scale = s;
+
+    // Center world in the available screen space
+    const worldPxW = WORLD_W * s;
+    const worldPxH = WORLD_H * s;
+
+    view.ox = (W - worldPxW) * 0.5;
+    view.oy = (H - worldPxH) * 0.5;
+  }
 
   // ---------- Pythonista-style y-up transform ----------
   function beginFrame() {
-    ctx.setTransform(1, 0, 0, -1, 0, H); // y-up like Pythonista scene
+    ctx.setTransform(view.scale, 0, 0, -view.scale, view.ox, H - view.oy);
   }
   function endFrame() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -29,6 +53,17 @@
   function stroke_weight(w) { ctx.lineWidth = w; }
   function no_stroke() { ctx.strokeStyle = "rgba(0,0,0,0)"; }
   function rect(x, y, w, h) { ctx.fillRect(x, y, w, h); }
+  function rectScreen(x, y, w, h) {
+    endFrame();
+    ctx.fillRect(x, H - y - h, w, h); // convert y-up to canvas y-down
+    beginFrame();
+  }
+
+  function strokeRectScreen(x, y, w, h) {
+    endFrame();
+    ctx.strokeRect(x, H - y - h, w, h);
+    beginFrame();
+  }
   function ellipse(x, y, w, h) {
     ctx.beginPath();
     ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
@@ -181,7 +216,7 @@
     update(dt) {
       this.x += this.vx * dt;
       this.y += this.vy * dt;
-      if (this.x < -120 || this.x > W + 120 || this.y < -120 || this.y > H + 120) {
+      if (this.x < -120 || this.x > WORLD_W + 120 || this.y < -120 || this.y > WORLD_H + 120) {
         this.alive = false;
       }
     }
@@ -205,7 +240,7 @@
     energy_rate: 10.0,
 
     // UI buttons
-    btn_h: 120,
+    btn_h: 80,
     btn_margin: 10,
     buttons: [
       ["STRIKE\n16", "striker"],
@@ -239,11 +274,11 @@
     _loadout_boxes: [],
 
     setup() {
-      this.ground_y = H * 0.22;
+      this.ground_y = WORLD_H * 0.22;
       this.lane_y = this.ground_y + 34;
 
       this.player_castle = new Castle(0, 48);
-      this.enemy_castle  = new Castle(1, W - 48);
+      this.enemy_castle  = new Castle(1, WORLD_W - 48);
 
       this.units = [];
       this.tower_balls = [];
@@ -604,8 +639,10 @@
     },
 
     // ---------- Input ----------
-    touch_began(x, y) {
+    touch_began(xW, yW, xS, yS) {
       if (this.state === "loadout") {
+        const x = xS, y = yS;   // ✅ screen-space hit testing
+
         for (const box of this._loadout_boxes) {
           const [bx, by, bw, bh, name] = box;
           if (bx <= x && x <= bx + bw && by <= y && y <= by + bh) {
@@ -613,6 +650,7 @@
             return;
           }
         }
+
         if (this.pick_weapon != null) {
           if ((W * 0.18 <= x && x <= W * 0.82) && (H * 0.10 - 26 <= y && y <= H * 0.10 + 26)) {
             this.start_match();
@@ -621,13 +659,16 @@
         return;
       }
 
+      // ---- gameplay uses world coords ----
+      const x = xW, y = yW;
+
       if (this.state === "win" || this.state === "lose") {
         this.setup();
         return;
       }
 
       if (y <= this.btn_h + 10) {
-        const bw = (W - this.btn_margin * 2) / this.buttons.length;
+        const bw = (WORLD_W - this.btn_margin * 2) / this.buttons.length;
         let idx = Math.floor((x - this.btn_margin) / bw);
         idx = clamp(idx, 0, this.buttons.length - 1);
         const kind = this.buttons[idx][1];
@@ -710,7 +751,7 @@
 
     draw_background(ox, oy) {
       fill(0.03, 0.04, 0.06, 1);
-      rect(0, 0, W, H);
+      rect(0, 0, WORLD_W, WORLD_H);
       //for (let i = 0; i < 12; i++) {
         //const t = i / 11;
         //fill(0.03 + 0.03 * t, 0.04 + 0.04 * t, 0.06 + 0.08 * t, 1);
@@ -721,7 +762,7 @@
       //for (let y = 0; y < H; y += 12) rect(0, y, W, 2);
 
       fill(0.04, 0.05, 0.07, 1);
-      rect(0 + ox, 0 + oy, W, this.ground_y + 42);
+      rect(0 + ox, 0 + oy, WORLD_W, this.ground_y + 42);
 
       const lane_y = this.lane_y - 18;
       fill(0.0, 0.0, 0.0, 0.25);
@@ -729,7 +770,7 @@
 
       stroke(0.25, 0.95, 0.85, 0.35);
       stroke_weight(2);
-      line(0 + ox, lane_y + oy, W + ox, lane_y + oy);
+      line(0 + ox, lane_y + oy, WORLD_W + ox, lane_y + oy);
       no_stroke();
 
       //stroke(0.25, 0.95, 0.85, 0.12);
@@ -757,23 +798,28 @@
       const [mx, my] = c.tower_muzzle(this.ground_y);
       this.glow_circle(mx + ox, my + oy, 6, glow, 0.65);
 
+      // --- Castle HP bar (WORLD space, scales with tower) ---
       const frac = Math.max(0.0, c.hp / c.max_hp);
-      const bar_w = 160;
-      const bar_h = 12;
-      const y = H * 0.92;
-      const x = (c.team === 0) ? 98 : (W - 98);
+
+      // bar size relative to tower width (so it scales naturally)
+      const bar_w = c.w * 1.9;     // tweak: 1.7–2.2
+      const bar_h = 10;            // world units
+      const bar_y = (by - 26);     // world y under tower base/top area
+
+      // center bar on the tower
+      const bar_x = c.x;
 
       fill(0.02, 0.02, 0.03, 0.85);
-      rect(x - bar_w / 2, y, bar_w, bar_h);
+      rect(bar_x - bar_w / 2 + ox, bar_y + oy, bar_w, bar_h);
 
       fill(glow[0], glow[1], glow[2], 0.75);
-      rect(x - bar_w / 2, y, bar_w * frac, bar_h);
+      rect(bar_x - bar_w / 2 + ox, bar_y + oy, bar_w * frac, bar_h);
 
-      fill(1, 1, 1, 0.65);
-      text(c.team === 0 ? "YOU" : "ENEMY", 36, x, y + 22);
+      //fill(1, 1, 1, 0.65);
+      //text(c.team === 0 ? "YOU" : "ENEMY", 36, x, y + 22);
 
-      fill(1, 1, 1, 0.45);
-      text(c.weapon_name, 14, x, y - 16);
+      //fill(1, 1, 1, 0.45);
+      //text(c.weapon_name, 14, x, y - 16);
     },
 
     draw_hud() {
@@ -784,16 +830,16 @@
       const y = this.btn_h + 32;
 
       fill(0.02, 0.02, 0.03, 0.85);
-      rect(x - bar_w / 2, y, bar_w, bar_h);
+      rectScreen(x - bar_w / 2, y, bar_w, bar_h);
 
       fill(0.25, 0.95, 0.85, 0.22);
-      rect(x - bar_w / 2 - 6, y - 6, bar_w + 12, bar_h + 12);
+      rectScreen(x - bar_w / 2 - 6, y - 6, bar_w + 12, bar_h + 12);
 
       fill(0.25, 0.95, 0.85, 0.75);
-      rect(x - bar_w / 2, y, bar_w * frac, bar_h);
+      rectScreen(x - bar_w / 2, y, bar_w * frac, bar_h);
 
       fill(1, 1, 1, 0.70);
-      text(`Energy: ${Math.floor(this.energy)}/${Math.floor(this.max_energy)}`, 32, x, y + 24);
+      text(`Energy: ${Math.floor(this.energy)}/${Math.floor(this.max_energy)}`, 32, x, y + 40);
     },
 
     draw_buttons() {
@@ -808,10 +854,10 @@
         const glow = affordable ? [0.25, 0.95, 0.85] : [0.35, 0.40, 0.45];
 
         fill(glow[0], glow[1], glow[2], affordable ? 0.12 : 0.06);
-        rect(x0 + 4, y0 - 2, bw - 8, this.btn_h + 6);
+        rectScreen(x0 + 4, y0 - 2, bw - 8, this.btn_h + 6);
 
         fill(0.02, 0.03, 0.05, 0.92);
-        rect(x0 + 6, y0, bw - 12, this.btn_h);
+        rectScreen(x0 + 6, y0, bw - 12, this.btn_h);
 
         fill(glow[0], glow[1], glow[2], affordable ? 0.90 : 0.35);
         text(label, 36, x0 + bw / 2, y0 + this.btn_h / 2 + 6);
@@ -843,10 +889,10 @@
         const glow = chosen ? [0.25, 0.95, 0.85] : [1.0, 1.0, 1.0];
 
         fill(0.25, 0.95, 0.85, chosen ? 0.20 : 0.08);
-        rect(x0 - 6, y0 - 6, bw + 12, bh + 12);
+        rectScreen(x0 - 6, y0 - 6, bw + 12, bh + 12);
 
         fill(0.02, 0.03, 0.05, 0.92);
-        rect(x0, y0, bw, bh);
+        rectScreen(x0, y0, bw, bh);
 
         fill(1, 1, 1, chosen ? 0.90 : 0.65);
         text(name.toUpperCase(), 52, W / 2, y0 + bh / 2);
@@ -876,11 +922,19 @@
     e.preventDefault();
     const r = canvas.getBoundingClientRect();
     const dpr = canvas.width / r.width;
+
     const sx = (e.clientX - r.left) * dpr;
     const sy = (e.clientY - r.top) * dpr;
-    const x = sx;
-    const y = H - sy; // y-up
-    Game.touch_began(x, y);
+
+    // screen y-up coords (no scaling)
+    const xS = sx;
+    const yS = H - sy;
+
+    // world y-up coords (scaled + centered)
+    const xW = (sx - view.ox) / view.scale;
+    const yW = ((H - sy) - view.oy) / view.scale;
+
+    Game.touch_began(xW, yW, xS, yS);
   }, { passive: false });
 
   // ---------- Resize ----------
@@ -888,12 +942,13 @@
     const dpr = window.devicePixelRatio || 1;
     W = Math.floor(window.innerWidth * dpr);
     H = Math.floor(window.innerHeight * dpr);
+
     canvas.width = W;
     canvas.height = H;
     canvas.style.width = window.innerWidth + "px";
     canvas.style.height = window.innerHeight + "px";
-    beginFrame();
-    Game.setup();
+
+    updateView();   // ✅ recompute scale + center offset
   }
   window.addEventListener("resize", resize);
 
@@ -911,6 +966,11 @@
       acc -= step;
     }
 
+    // Clear FULL screen (screen space, no scaling)
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "rgb(8,10,14)";   // same as your bg vibe
+    ctx.fillRect(0, 0, W, H);
+    
     beginFrame();
     Game.draw();
     endFrame();
@@ -920,5 +980,6 @@
 
   // Start
   resize();
+  Game.setup();
   requestAnimationFrame(loop);
 })();
