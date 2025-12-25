@@ -779,9 +779,9 @@
     draw_hud() {
       const frac = this.energy / this.max_energy;
       const bar_w = W * 0.64;
-      const bar_h = 16;
+      const bar_h = 24;
       const x = W / 2;
-      const y = H - 32;
+      const y = this.btn_h + 20;
 
       fill(0.02, 0.02, 0.03, 0.85);
       rect(x - bar_w / 2, y, bar_w, bar_h);
@@ -793,7 +793,7 @@
       rect(x - bar_w / 2, y, bar_w * frac, bar_h);
 
       fill(1, 1, 1, 0.70);
-      text(`Energy: ${Math.floor(this.energy)}/${Math.floor(this.max_energy)}`, 16, x, y + 24);
+      text(`Energy: ${Math.floor(this.energy)}/${Math.floor(this.max_energy)}`, 32, x, y + 24);
     },
 
     draw_buttons() {
