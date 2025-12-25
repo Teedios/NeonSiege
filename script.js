@@ -208,7 +208,7 @@
     btn_h: 70,
     btn_margin: 10,
     buttons: [
-      ["STRIK\n16", "striker"],
+      ["STRIKE\n16", "striker"],
       ["BRUTE\n22", "brute"],
       ["TANK\n36", "tank"]
     ],
@@ -823,12 +823,12 @@
       this.draw_background(0, 0);
 
       fill(1, 1, 1, 0.85);
-      text("NEON SIEGE", 54, W / 2, H * 0.82);
+      text("NEON SIEGE", 108, W / 2, H * 0.82);
       fill(1, 1, 1, 0.60);
       text("Pick Your Tower Weapon", 24, W / 2, H * 0.73);
 
       const bw = W * 0.78;
-      const bh = 54;
+      const bh = 108;
       const x0 = (W - bw) / 2;
       const start_y = H * 0.60;
       const gap = 18;
@@ -856,7 +856,7 @@
         if (name === "Crossbow") desc = "1-shots Striker • Fast reload";
         else if (name === "Ballista") desc = "1-shots Brute • Medium reload";
         else desc = "Almost 1-shots Tank • Slow reload";
-        text(desc, 16, W / 2, y0 - 18);
+        //text(desc, 16, W / 2, y0 - 18);
 
         this._loadout_boxes.push([x0, y0, bw, bh, name]);
       }
