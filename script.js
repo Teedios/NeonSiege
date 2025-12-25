@@ -814,7 +814,7 @@
         rect(x0 + 6, y0, bw - 12, this.btn_h);
 
         fill(glow[0], glow[1], glow[2], affordable ? 0.90 : 0.35);
-        text(label, 18, x0 + bw / 2, y0 + this.btn_h / 2 + 6);
+        text(label, 36, x0 + bw / 2, y0 + this.btn_h / 2 + 6);
       }
     },
 
@@ -849,7 +849,7 @@
         rect(x0, y0, bw, bh);
 
         fill(1, 1, 1, chosen ? 0.90 : 0.65);
-        text(name.toUpperCase(), 26, W / 2, y0 + bh / 2);
+        text(name.toUpperCase(), 52, W / 2, y0 + bh / 2);
 
         fill(1, 1, 1, 0.45);
         let desc = "";
