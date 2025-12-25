@@ -205,7 +205,7 @@
     energy_rate: 10.0,
 
     // UI buttons
-    btn_h: 70,
+    btn_h: 120,
     btn_margin: 10,
     buttons: [
       ["STRIKE\n16", "striker"],
